@@ -3,6 +3,7 @@ import SwiftUI
 struct ServerListView: View {
     @EnvironmentObject private var store: SMBServerStore
     @State private var showAdd = false
+    @State private var showSettings = false
     @State private var discoveredDraft: SMBServer?
     @StateObject private var discovery = SMBDiscovery()
 
@@ -66,6 +67,15 @@ struct ServerListView: View {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .accessibilityLabel("导出日志")
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("设置")
+                .sheet(isPresented: $showSettings) {
+                    SettingsView()
+                }
                 Button {
                     showAdd = true
                 } label: {

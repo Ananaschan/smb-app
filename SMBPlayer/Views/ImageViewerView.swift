@@ -11,6 +11,8 @@ struct ImageViewerView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isSaving = false
     @State private var saveError: String?
+    @State private var showSaveToast = false
+    @State private var toastTask: Task<Void, Never>?
 
     init(items: [RemoteItem], initialIndex: Int, server: SMBServer, service: SMBFileService) {
         self.items = items
@@ -73,6 +75,18 @@ struct ImageViewerView: View {
                 .padding(20)
                 .disabled(isSaving || items.isEmpty)
             }
+            .overlay(alignment: .bottom) {
+                if showSaveToast {
+                    Text("已保存到相册")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(.bottom, 96)
+                        .transition(.opacity)
+                }
+            }
             .offset(y: dragOffset)
             .opacity(1 - min(abs(dragOffset) / 400, 0.5))
         }
@@ -111,11 +125,27 @@ struct ImageViewerView: View {
         Task {
             do {
                 try await ImageSaver.saveOriginal(items[currentIndex], service: service)
-                // 保存成功：静默完成，不弹确认框
+                showSaveToast()
             } catch {
                 saveError = error.localizedDescription
             }
             isSaving = false
+        }
+    }
+
+    /// 显示一个 0.5 秒后自动消失的轻提示
+    @MainActor
+    private func showSaveToast() {
+        toastTask?.cancel()
+        withAnimation(.easeOut(duration: 0.2)) {
+            showSaveToast = true
+        }
+        toastTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                showSaveToast = false
+            }
         }
     }
 }
