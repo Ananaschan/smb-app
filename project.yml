@@ -1,0 +1,66 @@
+name: SMBPlayer
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  SMBPlayer:
+    type: application
+    platform: iOS
+    sources:
+      - path: SMBPlayer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ananaschan.smbplayer
+        SWIFT_VERSION: 5.9
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
+        SUPPORTS_MACCATALYST: NO
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    dependencies:
+      - package: AMSMB2
+        product: AMSMB2
+    info:
+      path: SMBPlayer/Info.plist
+      properties:
+        CFBundleDisplayName: SMB 文件
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSLocalNetworkUsageDescription: 连接局域网内 Windows 共享文件夹需要访问本地网络。
+        NSBonjourServices:
+          - _smb._tcp.
+        NSPhotoLibraryAddUsageDescription: 需要把图片保存到系统相册。
+        ITSAppUsesNonExemptEncryption: false
+  SMBPlayerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/SMBPlayerTests
+    dependencies:
+      - target: SMBPlayer
+packages:
+  AMSMB2:
+    url: https://github.com/amosavian/AMSMB2
+    from: 4.0.3
+
+schemes:
+  SMBPlayer:
+    build:
+      targets:
+        SMBPlayer: all
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -1,0 +1,9 @@
+.DS_Store
+DerivedData/
+build/
+*.ipa
+Pods/
+SMBPlayer/Info.plist
+*.xcodeproj
+*.xcworkspace
+.swiftpm
