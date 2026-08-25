@@ -90,8 +90,8 @@ final class VideoThumbnailService {
         player.drawable = UIView(frame: CGRect(x: 0, y: 0, width: 320, height: 180))
         let media = VLCMedia(url: url)
         media.addOption(":network-caching=1000")
+        media.addOption(":no-audio")
         player.media = media
-        player.audio?.volume = 0
         player.play()
         defer { player.stop() }
 

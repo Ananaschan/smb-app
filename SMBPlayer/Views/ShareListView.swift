@@ -54,9 +54,7 @@ struct ShareListView: View {
 
     private func openShare(_ share: SMBShare) {
         AppLogger.shared.log("open share \(share.name) @ \(server.host)")
-        var next = path.wrappedValue
-        next.append(.share(server, share))
-        path.wrappedValue = next
+        path.append(.share(server, share))
     }
 
     @MainActor

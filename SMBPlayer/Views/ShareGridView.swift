@@ -101,9 +101,7 @@ struct ShareGridView: View {
     }
 
     private func openShare(_ share: SMBShare) {
-        var next = path.wrappedValue
-        next.append(.share(server, share))
-        path.wrappedValue = next
+        path.append(.share(server, share))
     }
 
     @ViewBuilder
@@ -131,9 +129,7 @@ struct ShareGridView: View {
     }
 
     private func openFolder(_ routeServer: SMBServer, _ share: SMBShare, _ folder: String) {
-        var next = path.wrappedValue
-        next.append(.folder(routeServer, share, folder))
-        path.wrappedValue = next
+        path.append(.folder(routeServer, share, folder))
     }
 
     @MainActor
