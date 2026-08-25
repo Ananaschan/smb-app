@@ -43,6 +43,19 @@ jobs:
         run: |
           mkdir -p Payload
           cp -R "DerivedData/Build/Products/Release-iphoneos/SMBPlayer.app" "Payload/"
+          FRAMEWORKS_DIR="Payload/SMBPlayer.app/Frameworks"
+          mkdir -p "$FRAMEWORKS_DIR"
+          AMSMB2_FRAMEWORK=$(find "DerivedData/Build/Products/Release-iphoneos" -maxdepth 3 -type d -name "AMSMB2.framework" -print -quit)
+          if [ -z "$AMSMB2_FRAMEWORK" ]; then
+            echo "::error::AMSMB2.framework not found in build products"
+            exit 1
+          fi
+          if [ ! -d "$FRAMEWORKS_DIR/AMSMB2.framework" ]; then
+            cp -R "$AMSMB2_FRAMEWORK" "$FRAMEWORKS_DIR/"
+            echo "Embedded AMSMB2.framework"
+          else
+            echo "AMSMB2.framework already embedded"
+          fi
           zip -qry SMBPlayer.ipa Payload
 
       - name: Upload unsigned IPA

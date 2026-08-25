@@ -2,6 +2,7 @@
 DerivedData/
 build/
 *.ipa
+*.zip
 Pods/
 SMBPlayer/Info.plist
 *.xcodeproj

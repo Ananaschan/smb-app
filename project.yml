@@ -24,6 +24,9 @@ targets:
     dependencies:
       - package: AMSMB2
         product: AMSMB2
+        embed: true
+        link: true
+        codeSign: true
     info:
       path: SMBPlayer/Info.plist
       properties:
