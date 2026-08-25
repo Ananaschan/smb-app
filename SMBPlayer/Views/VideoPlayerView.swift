@@ -1,4 +1,5 @@
 import AudioToolbox
+import MediaPlayer
 import MobileVLCKit
 import SwiftUI
 import UIKit
@@ -13,6 +14,19 @@ struct VideoPlayerView: View {
     @StateObject private var model = VLCPlayerViewModel()
     @State private var subtitleItems: [RemoteItem] = []
     @State private var controlsVisible = true
+    @State private var hideTimerTask: Task<Void, Never>?
+
+    private enum DragMode {
+        case seek
+        case volume
+        case brightness
+    }
+
+    @State private var dragMode: DragMode?
+    @State private var dragStartPosition: Double = 0
+    @State private var dragStartVolume: Float = 0
+    @State private var dragStartBrightness: CGFloat = 0
+    @State private var gestureHint: (icon: String, text: String)?
 
     private var password: String {
         KeychainStore.password(for: server) ?? ""
@@ -27,13 +41,27 @@ struct VideoPlayerView: View {
             if controlsVisible {
                 controlsOverlay
             }
-        }
-        .statusBarHidden(controlsVisible)
-        .onTapGesture {
-            withAnimation {
-                controlsVisible.toggle()
+
+            if let hint = gestureHint {
+                VStack(spacing: 4) {
+                    Image(systemName: hint.icon)
+                        .font(.body.weight(.semibold))
+                    Text(hint.text)
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .transition(.opacity)
             }
         }
+        .statusBarHidden(controlsVisible)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            toggleControls()
+        }
+        .gesture(playerDragGesture)
         .task {
             model.play(
                 item: item,
@@ -44,9 +72,96 @@ struct VideoPlayerView: View {
             UIApplication.shared.isIdleTimerDisabled = true
             await loadSubtitles()
         }
+        .onChange(of: controlsVisible) { visible in
+            if visible {
+                scheduleAutoHide()
+            } else {
+                hideTimerTask?.cancel()
+            }
+        }
+        .onChange(of: model.isPlaying) { playing in
+            if playing {
+                scheduleAutoHide()
+            } else {
+                hideTimerTask?.cancel()
+            }
+        }
         .onDisappear {
+            hideTimerTask?.cancel()
             model.stop()
             UIApplication.shared.isIdleTimerDisabled = false
+        }
+    }
+
+    private var playerDragGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                if dragMode == nil {
+                    let dx = value.translation.width
+                    let dy = value.translation.height
+                    if abs(dx) > abs(dy) {
+                        dragMode = .seek
+                        dragStartPosition = model.position
+                    } else {
+                        dragStartVolume = VolumeController.volume
+                        dragStartBrightness = UIScreen.main.brightness
+                        dragMode = value.startLocation.x > UIScreen.main.bounds.midX
+                            ? .volume
+                            : .brightness
+                    }
+                }
+                applyDrag(value)
+            }
+            .onEnded { _ in
+                dragMode = nil
+                withAnimation(.easeOut(duration: 0.2)) {
+                    gestureHint = nil
+                }
+            }
+    }
+
+    private func applyDrag(_ value: DragGesture.Value) {
+        let screen = UIScreen.main.bounds
+        switch dragMode {
+        case .seek:
+            let delta = Double(value.translation.width / screen.width)
+            let newPosition = min(1, max(0, dragStartPosition + delta))
+            model.seek(to: newPosition)
+            gestureHint = (
+                "arrow.left.and.right",
+                "\(model.currentTimeText) / \(model.durationText)"
+            )
+        case .volume:
+            let delta = -Float(value.translation.height / screen.height)
+            let newVolume = min(1, max(0, dragStartVolume + delta))
+            VolumeController.volume = newVolume
+            gestureHint = ("speaker.wave.2.fill", "\(Int(newVolume * 100))%")
+        case .brightness:
+            let delta = -CGFloat(value.translation.height / screen.height)
+            let newBrightness = min(1, max(0, dragStartBrightness + delta))
+            UIScreen.main.brightness = newBrightness
+            gestureHint = ("sun.max.fill", "\(Int(newBrightness * 100))%")
+        case nil:
+            break
+        }
+    }
+
+    private func toggleControls() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            controlsVisible.toggle()
+        }
+    }
+
+    /// 播放中自动隐藏控制条（暂停时保持显示）
+    private func scheduleAutoHide() {
+        hideTimerTask?.cancel()
+        guard model.isPlaying else { return }
+        hideTimerTask = Task {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.2)) {
+                controlsVisible = false
+            }
         }
     }
 
@@ -59,7 +174,7 @@ struct VideoPlayerView: View {
                     Image(systemName: "xmark")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.white)
-                        .padding(12)
+                        .padding(10)
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 Spacer()
@@ -77,7 +192,7 @@ struct VideoPlayerView: View {
                     Image(systemName: "captions.bubble")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.white)
-                        .padding(12)
+                        .padding(10)
                         .background(.ultraThinMaterial, in: Circle())
                 }
             }
@@ -85,44 +200,48 @@ struct VideoPlayerView: View {
 
             Spacer()
 
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 if !model.bufferingText.isEmpty {
                     Text(model.bufferingText)
                         .font(.caption)
                         .foregroundStyle(.white)
                 }
-                Slider(
-                    value: $model.position,
-                    in: 0...1
-                ) { editing in
-                    if !editing {
-                        model.seek(to: model.position)
-                    }
-                }
-                .tint(.white)
-
-                HStack {
-                    Text(model.currentTimeText)
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.white)
-                    Spacer()
+                HStack(spacing: 12) {
                     Button {
                         model.togglePlayPause()
                     } label: {
-                        Image(systemName: model.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 52))
+                        Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(.ultraThinMaterial, in: Circle())
                     }
-                    Spacer()
-                    Text(model.durationText)
-                        .font(.caption.monospacedDigit())
+                    Slider(
+                        value: $model.position,
+                        in: 0...1
+                    ) { editing in
+                        if !editing {
+                            model.seek(to: model.position)
+                        }
+                    }
+                    .tint(.white)
+                    Text("\(model.currentTimeText) / \(model.durationText)")
+                        .font(.caption2.monospacedDigit())
                         .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .layoutPriority(1)
                 }
             }
-            .padding()
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 14)
+            .padding(.top, 6)
+            .padding(.bottom, 14)
+            .background(
+                LinearGradient(
+                    colors: [.black.opacity(0.6), .clear],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+            )
         }
     }
 
@@ -153,6 +272,22 @@ struct VideoPlayerView: View {
             return
         }
         select(auto)
+    }
+}
+
+/// 通过 MPVolumeView 内部的 UISlider 调节系统音量
+private enum VolumeController {
+    private static let volumeView = MPVolumeView(frame: .zero)
+
+    private static var slider: UISlider? {
+        volumeView.subviews.compactMap { $0 as? UISlider }.first
+    }
+
+    static var volume: Float {
+        get { AVAudioSession.sharedInstance().outputVolume }
+        set {
+            slider?.value = newValue
+        }
     }
 }
 
