@@ -16,7 +16,7 @@ struct VideoPlayerView: View {
     @State private var controlsVisible = true
     @State private var hideTimerTask: Task<Void, Never>?
 
-    private enum DragMode {
+    private enum DragMode: Equatable {
         case seek
         case volume
         case brightness
@@ -26,7 +26,13 @@ struct VideoPlayerView: View {
     @State private var dragStartPosition: Double = 0
     @State private var dragStartVolume: Float = 0
     @State private var dragStartBrightness: CGFloat = 0
+    @State private var dragPreviewPosition: Double = 0
+    @State private var currentVolume: Float = 0.5
     @State private var gestureHint: (icon: String, text: String)?
+    @State private var lastSeekTime = Date.distantPast
+
+    private static let dragThreshold: CGFloat = 12
+    private static let seekThrottle: TimeInterval = 0.25
 
     private var password: String {
         KeychainStore.password(for: server) ?? ""
@@ -37,6 +43,11 @@ struct VideoPlayerView: View {
             Color.black.ignoresSafeArea()
             VLCPlayerCanvas(player: model.player)
                 .ignoresSafeArea()
+
+            // 挂在视图层级里，抑制系统音量 HUD（音量反馈用自定义右侧竖条）
+            VolumeHudSuppressor()
+                .frame(width: 1, height: 1)
+                .opacity(0.001)
 
             if controlsVisible {
                 controlsOverlay
@@ -56,11 +67,22 @@ struct VideoPlayerView: View {
                 .transition(.opacity)
             }
         }
+        .overlay(alignment: .trailing) {
+            if dragMode == .volume {
+                volumeBar
+                    .padding(.trailing, 28)
+                    .transition(.opacity)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if dragMode == .seek {
+                seekProgressBar
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: dragMode != nil)
         .statusBarHidden(controlsVisible)
         .contentShape(Rectangle())
-        .onTapGesture {
-            toggleControls()
-        }
         .gesture(playerDragGesture)
         .task {
             model.play(
@@ -93,18 +115,25 @@ struct VideoPlayerView: View {
         }
     }
 
+    // MARK: - 手势（点击与拖动统一处理）
+
     private var playerDragGesture: some Gesture {
-        DragGesture(minimumDistance: 12)
+        DragGesture(minimumDistance: 0)
             .onChanged { value in
+                let dx = value.translation.width
+                let dy = value.translation.height
                 if dragMode == nil {
-                    let dx = value.translation.width
-                    let dy = value.translation.height
+                    guard abs(dx) > Self.dragThreshold || abs(dy) > Self.dragThreshold else {
+                        return
+                    }
                     if abs(dx) > abs(dy) {
                         dragMode = .seek
                         dragStartPosition = model.position
+                        dragPreviewPosition = model.position
                     } else {
                         dragStartVolume = VolumeController.volume
                         dragStartBrightness = UIScreen.main.brightness
+                        currentVolume = dragStartVolume
                         dragMode = value.startLocation.x > UIScreen.main.bounds.midX
                             ? .volume
                             : .brightness
@@ -112,10 +141,20 @@ struct VideoPlayerView: View {
                 }
                 applyDrag(value)
             }
-            .onEnded { _ in
-                dragMode = nil
-                withAnimation(.easeOut(duration: 0.2)) {
-                    gestureHint = nil
+            .onEnded { value in
+                if dragMode == nil {
+                    // 未超过位移阈值 = 单击
+                    if shouldHandleTap(at: value.startLocation) {
+                        toggleControls()
+                    }
+                } else {
+                    if dragMode == .seek {
+                        model.seek(to: dragPreviewPosition)
+                    }
+                    dragMode = nil
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        gestureHint = nil
+                    }
                 }
             }
     }
@@ -126,16 +165,21 @@ struct VideoPlayerView: View {
         case .seek:
             let delta = Double(value.translation.width / screen.width)
             let newPosition = min(1, max(0, dragStartPosition + delta))
-            model.seek(to: newPosition)
+            dragPreviewPosition = newPosition
+            let now = Date()
+            if now.timeIntervalSince(lastSeekTime) >= Self.seekThrottle {
+                model.seek(to: newPosition)
+                lastSeekTime = now
+            }
             gestureHint = (
                 "arrow.left.and.right",
-                "\(model.currentTimeText) / \(model.durationText)"
+                "\(VLCPlayerViewModel.format(seconds: Int(newPosition * model.durationSeconds))) / \(model.durationText)"
             )
         case .volume:
             let delta = -Float(value.translation.height / screen.height)
             let newVolume = min(1, max(0, dragStartVolume + delta))
+            currentVolume = newVolume
             VolumeController.volume = newVolume
-            gestureHint = ("speaker.wave.2.fill", "\(Int(newVolume * 100))%")
         case .brightness:
             let delta = -CGFloat(value.translation.height / screen.height)
             let newBrightness = min(1, max(0, dragStartBrightness + delta))
@@ -144,6 +188,15 @@ struct VideoPlayerView: View {
         case nil:
             break
         }
+    }
+
+    /// 控制条显示时，顶部按钮区和底部控制条内的点击不当作"切换控制条"处理
+    private func shouldHandleTap(at location: CGPoint) -> Bool {
+        guard controlsVisible else { return true }
+        let screen = UIScreen.main.bounds
+        if location.y < 90 { return false }
+        if location.y > screen.height - 160 { return false }
+        return true
     }
 
     private func toggleControls() {
@@ -164,6 +217,39 @@ struct VideoPlayerView: View {
             }
         }
     }
+
+    // MARK: - 拖动反馈
+
+    private var volumeBar: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "speaker.wave.2.fill")
+                .font(.caption.weight(.semibold))
+            ZStack(alignment: .bottom) {
+                Capsule()
+                    .fill(.white.opacity(0.25))
+                Capsule()
+                    .fill(.white)
+                    .frame(height: max(3, 110 * CGFloat(currentVolume)))
+            }
+            .frame(width: 6, height: 110)
+        }
+        .foregroundStyle(.white)
+    }
+
+    private var seekProgressBar: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(.white.opacity(0.25))
+                Rectangle()
+                    .fill(.white)
+                    .frame(width: proxy.size.width * CGFloat(dragPreviewPosition))
+            }
+        }
+        .frame(height: 3)
+    }
+
+    // MARK: - 控制条
 
     private var controlsOverlay: some View {
         VStack {
@@ -275,9 +361,10 @@ struct VideoPlayerView: View {
     }
 }
 
-/// 通过 MPVolumeView 内部的 UISlider 调节系统音量
+/// 系统音量调节 + 抑制系统音量 HUD
 private enum VolumeController {
-    private static let volumeView = MPVolumeView(frame: .zero)
+    /// 该视图需要挂进窗口层级（VideoPlayerView 内），才能抑制系统音量 HUD
+    static let volumeView = MPVolumeView(frame: .zero)
 
     private static var slider: UISlider? {
         volumeView.subviews.compactMap { $0 as? UISlider }.first
@@ -289,6 +376,14 @@ private enum VolumeController {
             slider?.value = newValue
         }
     }
+}
+
+private struct VolumeHudSuppressor: UIViewRepresentable {
+    func makeUIView(context: Context) -> MPVolumeView {
+        VolumeController.volumeView
+    }
+
+    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
 }
 
 struct VLCPlayerCanvas: UIViewRepresentable {

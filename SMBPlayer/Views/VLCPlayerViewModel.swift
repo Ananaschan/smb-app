@@ -24,6 +24,10 @@ final class VLCPlayerViewModel: NSObject, ObservableObject {
         return Self.format(seconds: Int(millis / 1000))
     }
 
+    var durationSeconds: Double {
+        Double(player.media?.length.intValue ?? 0) / 1000.0
+    }
+
     func play(
         item: RemoteItem,
         server: SMBServer,
@@ -109,7 +113,7 @@ final class VLCPlayerViewModel: NSObject, ObservableObject {
         position = Double(player.position)
     }
 
-    private static func format(seconds: Int) -> String {
+    static func format(seconds: Int) -> String {
         let hours = seconds / 3600
         let minutes = (seconds % 3600) / 60
         let secs = seconds % 60
