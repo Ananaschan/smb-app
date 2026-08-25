@@ -203,6 +203,7 @@ struct BrowseView: View {
                     GridCell(
                         item: item,
                         server: server,
+                        share: share,
                         service: service,
                         action: { open(item) }
                     )
@@ -236,7 +237,7 @@ struct BrowseView: View {
 
     private var gridColumns: [GridItem] {
         [
-            GridItem(.adaptive(minimum: 110, maximum: 160), spacing: 14)
+            GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 16)
         ]
     }
 
@@ -420,14 +421,15 @@ private enum NewEntryType: Equatable {
 private struct GridCell: View {
     let item: RemoteItem
     let server: SMBServer
+    let share: String
     let service: SMBFileService
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 6) {
-                FileThumbnailView(item: item, server: server, service: service)
-                    .frame(height: 110)
+                FileThumbnailView(item: item, server: server, share: share, service: service)
+                    .frame(height: 140)
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 Text(item.name)

@@ -109,6 +109,13 @@ struct VideoPlayerView: View {
             }
         }
         .onDisappear {
+            // 退出前保存当前帧，作为该视频的缩略图（"上次观看的最后一帧"）
+            VideoThumbnailService.captureLastFrame(
+                player: model.player,
+                item: item,
+                server: server,
+                share: share
+            )
             hideTimerTask?.cancel()
             model.stop()
             UIApplication.shared.isIdleTimerDisabled = false

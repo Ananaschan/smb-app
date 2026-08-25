@@ -283,6 +283,17 @@ NavigationLink {
 - 子文件夹层级用工具栏"上级"按钮返回；共享→文件的 push 由外层栈提供
 - 附带效果：原先"首次点文件夹被弹回"的问题也随内层栈一起消失
 
+### 16. 缩略图放大 + 视频帧缩略图
+
+- 网格缩略图放大：`GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 16)`，
+  图块高度 110 → 140（`BrowseView` 与 `ShareGridView` 同步调整），iPad 一排约 6~7 个
+- 视频缩略图（`VideoThumbnailService`）：
+  - 用隐藏 VLC 播放器以 `smb://` 直接播放视频前段（无需整文件下载），跳到 3% 处
+    `saveVideoSnapshot` 截帧，写入 `Caches/videos/` 磁盘缓存（键：server|share|path|size|mtime）
+  - 串行队列保证同一时间只有一个 VLC 在截帧；失败回退胶片图标
+  - 退出播放器时（`onDisappear`）保存当前帧覆盖缩略图 → 下次显示"上次观看的最后一帧"
+  - 注意：每个视频首次显示约需 2~4 秒生成，之后走缓存
+
 ## 当前待排查问题
 
 ### SMB 进入文件夹后自动退出/断开

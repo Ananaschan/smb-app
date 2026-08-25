@@ -9,7 +9,7 @@ struct ShareGridView: View {
     @State private var loadFailed = false
 
     private let columns = [
-        GridItem(.adaptive(minimum: 110, maximum: 160), spacing: 14)
+        GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 16)
     ]
 
     var body: some View {
@@ -52,7 +52,7 @@ struct ShareGridView: View {
                                                 .font(.system(size: 40))
                                                 .foregroundStyle(.secondary)
                                         }
-                                        .frame(height: 110)
+                                        .frame(height: 140)
                                         .frame(maxWidth: .infinity)
                                         Text(share.name)
                                             .font(.caption)
