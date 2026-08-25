@@ -88,7 +88,7 @@ struct ImageViewerView: View {
                 }
             }
             .offset(y: dragOffset)
-            .opacity(1 - min(abs(dragOffset) / 400, 0.5))
+            .opacity(1 - min(Double(abs(dragOffset)) / 400, 0.5))
         }
         .gesture(dismissGesture)
         .alert("保存失败", isPresented: Binding(
@@ -125,7 +125,7 @@ struct ImageViewerView: View {
         Task {
             do {
                 try await ImageSaver.saveOriginal(items[currentIndex], service: service)
-                showSaveToast()
+                presentSaveToast()
             } catch {
                 saveError = error.localizedDescription
             }
@@ -135,7 +135,7 @@ struct ImageViewerView: View {
 
     /// 显示一个 0.5 秒后自动消失的轻提示
     @MainActor
-    private func showSaveToast() {
+    private func presentSaveToast() {
         toastTask?.cancel()
         withAnimation(.easeOut(duration: 0.2)) {
             showSaveToast = true

@@ -114,7 +114,7 @@ actor ImageLoader {
 
     /// 缓存超过 4 GB 时，按修改时间从旧到新删除，直到占用降到 70% 以下。
     private func enforceCacheLimit() {
-        var files = cachedFiles()
+        let files = cachedFiles()
         var total = files.reduce(Int64(0)) { $0 + ($1.size ?? 0) }
         guard total > Self.maxCacheBytes else { return }
         for file in files {
