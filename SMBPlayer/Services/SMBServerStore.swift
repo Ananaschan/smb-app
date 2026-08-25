@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 final class SMBServerStore: ObservableObject {
-    @Published var servers: [SMBServer]
+    @Published var servers: [SMBServer] = []
 
     private var fileURL: URL {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -13,8 +13,6 @@ final class SMBServerStore: ObservableObject {
         if let data = try? Data(contentsOf: fileURL),
            let decoded = try? JSONDecoder().decode([SMBServer].self, from: data) {
             servers = decoded
-        } else {
-            servers = []
         }
     }
 
