@@ -17,20 +17,9 @@ struct ShareListView: View {
             } else {
                 List(shares) { share in
                     Button {
-                        path.wrappedValue.append(.share(server, share))
+                        openShare(share)
                     } label: {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(share.name)
-                                if !share.comment.isEmpty {
-                                    Text(share.comment)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        } icon: {
-                            Image(systemName: "internaldrive.fill")
-                        }
+                        shareRow(share)
                     }
                     .buttonStyle(.plain)
                 }
@@ -46,6 +35,28 @@ struct ShareListView: View {
         .task {
             await load()
         }
+    }
+
+    private func shareRow(_ share: SMBShare) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(share.name)
+                if !share.comment.isEmpty {
+                    Text(share.comment)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } icon: {
+            Image(systemName: "internaldrive.fill")
+        }
+    }
+
+    private func openShare(_ share: SMBShare) {
+        AppLogger.shared.log("open share \(share.name) @ \(server.host)")
+        var next = path.wrappedValue
+        next.append(.share(server, share))
+        path.wrappedValue = next
     }
 
     @MainActor

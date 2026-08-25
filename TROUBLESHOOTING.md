@@ -310,6 +310,15 @@ NavigationLink {
   `ServerListView`/`ShareListView` 传递路径绑定，共享行改为按钮入栈
 - 侧滑返回/左上角返回键逐级生效；每层 `.task(id: path)` 正常触发
 
+补充（编译修复）：
+
+- `ShareGridView` body 单表达式过于复杂触发 `-O` 全模块类型检查超时
+  （`unable to type-check this expression in reasonable time`），并把 `ShareListView`
+  的 `wrappedValue` 报错带成级联误报
+- 修复：`ShareGridView` 拆分为 `gridContent`/`shareTile`/`browseDestination`/`openShare`/
+  `openFolder` 等小函数；`ShareListView` 同样拆分 `shareRow`/`openShare`，保持每个
+  表达式类型检查轻量（本项目编译器的红线：任何视图 body 都不要堆大表达式）
+
 ## 当前待排查问题
 
 ### SMB 进入文件夹后自动退出/断开
