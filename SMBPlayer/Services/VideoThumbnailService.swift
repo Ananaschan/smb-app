@@ -11,7 +11,7 @@ final class VideoThumbnailService {
 
     private let memory = NSCache<NSString, UIImage>()
     /// 串行队列尾：保证同一时间只有一个 VLC 播放器在截帧
-    private var lastTask: Task<UIImage?, Never>?
+    private var lastTask: Task<Void, Never>?
 
     func thumbnail(for item: RemoteItem, server: SMBServer, share: String) async -> UIImage? {
         let key = Self.cacheKey(for: item, server: server, share: share) as NSString
