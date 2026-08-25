@@ -39,12 +39,22 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $pathStack) {
-            directoryView(path: "")
-                .navigationDestination(for: String.self) { path in
-                    directoryView(path: path)
+        directoryView(path: currentPath)
+            .toolbar {
+                if !pathStack.isEmpty {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            pathStack.removeLast()
+                        } label: {
+                            Label("上级", systemImage: "chevron.left")
+                        }
+                    }
                 }
-        }
+            }
+    }
+
+    private var currentPath: String {
+        pathStack.last ?? ""
     }
 
     @ViewBuilder
