@@ -15,7 +15,9 @@ struct ShareListView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(shares) { share in
-                    NavigationLink(value: AppRoute.share(server, share)) {
+                    NavigationLink {
+                        BrowseView(server: server, share: share.name)
+                    } label: {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(share.name)

@@ -9,7 +9,9 @@ struct ServerListView: View {
     var body: some View {
         List {
             ForEach(store.servers) { server in
-                NavigationLink(value: AppRoute.server(server)) {
+                NavigationLink {
+                    ShareListView(server: server)
+                } label: {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(server.displayName)

@@ -5,6 +5,7 @@
 - iOS App 已能通过 GitHub Actions 编译出未签名 IPA。
 - 最新 IPA 已包含 `AMSMB2.framework`，启动闪退问题已修复。
 - Sideloadly 自签安装后，还需要继续验证 SMB 浏览和播放功能。
+- 导航跳转已改用 destination-based `NavigationLink`（见第 7 条），待真机验证。
 
 ## 已解决的问题
 
@@ -98,6 +99,54 @@ Call to lockdownd_client_new_with_handshake failed: LOCKDOWN_E_MUX_ERROR
 - 安装 Microsoft Store 的 `Apple Devices`
 - 或安装 Apple 官网的 iTunes for Windows
 - 安装后重新插设备并信任电脑
+
+### 7. SwiftUI 导航：value-based NavigationLink 找不到 navigationDestination
+
+现象：
+
+```text
+A NavigationLink is presenting a value of type AppRoute
+but there is no matching navigationDestination declaration
+visible from the location of the link. The link cannot be activated.
+```
+
+点击主机无法进入共享列表。
+
+排查过程：
+
+- 最初：`navigationDestination(for: SMBServer.self)` / `(for: SMBShare.self)` 挂在各自 `List` 上，
+  iOS 17/18 下 lazy container 内的注册对链接不可见，报 Fault。
+- 提交 `e4e8c9d`：统一为 `AppRoute` 枚举，把 `navigationDestination(for: AppRoute.self)` 注册到外层
+  `NavigationStack` 的直接子视图上（文档推荐位置），但新构建日志仍报同样 Fault。
+- 类型与注册位置均无误（`SMBServer`/`SMBShare` 都 Hashable），判断为 iOS 18 下
+  value-based `NavigationLink` + `navigationDestination(for:)` 查找不稳定的已知问题，
+  在 `RootView` 按 `horizontalSizeClass` 条件切换 `NavigationStack`/`NavigationSplitView` 的结构下尤其明显。
+
+解决：
+
+- 服务器列表、共享列表全部改为 destination-based 链接，不依赖 `navigationDestination` 注册：
+
+```swift
+NavigationLink {
+    ShareListView(server: server)
+} label: { ... }
+```
+
+```swift
+NavigationLink {
+    BrowseView(server: server, share: share.name)
+} label: { ... }
+```
+
+- 删除不再使用的 `AppRoute` 枚举和外层注册。
+- 该写法 iOS 16/17/18 均直接生效，不经过注册表查找。
+
+待真机验证：
+
+- 点主机 → 共享列表
+- 点共享 → 根目录
+- 点文件夹 → 下一层（若仍出现"退回上一层"，下一步考虑把 `BrowseView` 内层嵌套的
+  `NavigationStack` 拍平，把子文件夹路径并入外层栈）
 
 ## 当前待排查问题
 
