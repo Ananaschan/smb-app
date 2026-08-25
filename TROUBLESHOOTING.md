@@ -294,6 +294,22 @@ NavigationLink {
   - 退出播放器时（`onDisappear`）保存当前帧覆盖缩略图 → 下次显示"上次观看的最后一帧"
   - 注意：每个视频首次显示约需 2~4 秒生成，之后走缓存
 
+### 17. 侧滑返回退出到共享首页（子文件夹未分层）
+
+现象：
+
+- 上一轮移除内层导航栈后，子文件夹是状态切换；外层栈的**侧滑返回手势直接弹出整个
+  BrowseView**，回到共享网格，而不是返回上一层文件夹
+
+解决（统一分层导航）：
+
+- 新增 `BrowseRoute` 路由（`.share(SMBServer, SMBShare)` / `.folder(SMBServer, SMBShare, String)`），
+  共享根与每个子文件夹都是外层栈里的**真实层级**（程序化 `path.append` 入栈，不用 value-link）
+- `BrowseView` 变成单层目录视图（`server/share/path/onOpenFolder`），每层独立服务与状态
+- iPad：`ShareGridView` 持有自己的路由栈；iPhone：compact 栈由 `RootView` 持有，
+  `ServerListView`/`ShareListView` 传递路径绑定，共享行改为按钮入栈
+- 侧滑返回/左上角返回键逐级生效；每层 `.task(id: path)` 正常触发
+
 ## 当前待排查问题
 
 ### SMB 进入文件夹后自动退出/断开

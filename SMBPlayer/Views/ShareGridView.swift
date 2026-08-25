@@ -7,13 +7,14 @@ struct ShareGridView: View {
     @State private var shares: [SMBShare] = []
     @State private var isLoading = true
     @State private var loadFailed = false
+    @State private var path: [BrowseRoute] = []
 
     private let columns = [
         GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 16)
     ]
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if isLoading {
                     ProgressView("正在读取共享…")
@@ -41,8 +42,8 @@ struct ShareGridView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 14) {
                             ForEach(shares) { share in
-                                NavigationLink {
-                                    BrowseView(server: server, share: share.name)
+                                Button {
+                                    path.wrappedValue.append(.share(server, share))
                                 } label: {
                                     VStack(spacing: 6) {
                                         ZStack {
@@ -75,6 +76,28 @@ struct ShareGridView: View {
             }
             .refreshable {
                 await load()
+            }
+            .navigationDestination(for: BrowseRoute.self) { route in
+                switch route {
+                case .share(let routeServer, let share):
+                    BrowseView(
+                        server: routeServer,
+                        share: share.name,
+                        path: "",
+                        onOpenFolder: { folder in
+                            path.wrappedValue.append(.folder(routeServer, share, folder))
+                        }
+                    )
+                case .folder(let routeServer, let share, let folder):
+                    BrowseView(
+                        server: routeServer,
+                        share: share.name,
+                        path: folder,
+                        onOpenFolder: { sub in
+                            path.wrappedValue.append(.folder(routeServer, share, sub))
+                        }
+                    )
+                }
             }
         }
     }

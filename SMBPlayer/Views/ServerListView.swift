@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ServerListView: View {
     @EnvironmentObject private var store: SMBServerStore
+    @Binding var path: [BrowseRoute]
     @State private var showAdd = false
     @State private var discoveredDraft: SMBServer?
     @StateObject private var discovery = SMBDiscovery()
@@ -10,7 +11,7 @@ struct ServerListView: View {
         List {
             ForEach(store.servers) { server in
                 NavigationLink {
-                    ShareListView(server: server)
+                    ShareListView(server: server, path: $path)
                 } label: {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {

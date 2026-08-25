@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ShareListView: View {
     let server: SMBServer
+    @Binding var path: [BrowseRoute]
 
     @State private var shares: [SMBShare] = []
     @State private var isLoading = true
@@ -15,8 +16,8 @@ struct ShareListView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(shares) { share in
-                    NavigationLink {
-                        BrowseView(server: server, share: share.name)
+                    Button {
+                        path.wrappedValue.append(.share(server, share))
                     } label: {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
@@ -31,6 +32,7 @@ struct ShareListView: View {
                             Image(systemName: "internaldrive.fill")
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }

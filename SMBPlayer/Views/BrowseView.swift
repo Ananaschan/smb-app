@@ -9,9 +9,12 @@ struct MediaSelection: Identifiable {
 struct BrowseView: View {
     let server: SMBServer
     let share: String
+    /// 当前目录路径（"" = 共享根目录）
+    let path: String
+    /// 点击文件夹时由外层导航栈 push 下一层
+    let onOpenFolder: (String) -> Void
 
     @StateObject private var service: SMBFileService
-    @State private var pathStack: [String] = []
     @State private var sort: RemoteFileSort = .name
     @State private var isAscending = true
     @State private var gridMode = true
@@ -29,9 +32,16 @@ struct BrowseView: View {
     @State private var showError = false
 
     @MainActor
-    init(server: SMBServer, share: String) {
+    init(
+        server: SMBServer,
+        share: String,
+        path: String,
+        onOpenFolder: @escaping (String) -> Void
+    ) {
         self.server = server
         self.share = share
+        self.path = path
+        self.onOpenFolder = onOpenFolder
         let password = KeychainStore.password(for: server) ?? ""
         _service = StateObject(
             wrappedValue: SMBFileService(server: server, share: share, password: password)
@@ -39,22 +49,7 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        directoryView(path: currentPath)
-            .toolbar {
-                if !pathStack.isEmpty {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            pathStack.removeLast()
-                        } label: {
-                            Label("上级", systemImage: "chevron.left")
-                        }
-                    }
-                }
-            }
-    }
-
-    private var currentPath: String {
-        pathStack.last ?? ""
+        directoryView(path: path)
     }
 
     @ViewBuilder
@@ -140,7 +135,7 @@ struct BrowseView: View {
         ) {
             TextField("名称", text: $newName)
             Button("创建") {
-                Task { await performCreate() }
+                Task { await performCreate(in: path) }
             }
             Button("取消", role: .cancel) {}
         } message: {
@@ -308,7 +303,7 @@ struct BrowseView: View {
     private func open(_ item: RemoteItem) {
         if item.isDirectory {
             AppLogger.shared.log("open folder \(item.path)")
-            pathStack.append(item.path)
+            onOpenFolder(item.path)
         } else if item.isImage || item.isVideo {
             AppLogger.shared.log("open media \(item.path)")
             selectedMedia = MediaSelection(item: item)
@@ -349,9 +344,8 @@ struct BrowseView: View {
     }
 
     @MainActor
-    private func performCreate() async {
+    private func performCreate(in path: String) async {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let path = pathStack.last ?? ""
         defer {
             newEntryType = nil
             showNewEntry = false
