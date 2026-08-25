@@ -6,6 +6,7 @@
 - 最新 IPA 已包含 `AMSMB2.framework`，启动闪退问题已修复。
 - Sideloadly 自签安装后，还需要继续验证 SMB 浏览和播放功能。
 - 导航跳转已改用 destination-based `NavigationLink`（见第 7 条），待真机验证。
+- 最新真机日志确认：主机→共享→图片浏览链路已通；剩余问题与图片查看器交互已修（见第 8、9 条）。
 
 ## 已解决的问题
 
@@ -147,6 +148,34 @@ NavigationLink {
 - 点共享 → 根目录
 - 点文件夹 → 下一层（若仍出现"退回上一层"，下一步考虑把 `BrowseView` 内层嵌套的
   `NavigationStack` 拍平，把子文件夹路径并入外层栈）
+
+### 8. 首次进入子文件夹被弹回，第二次点击正常
+
+现象（新构建真机日志确认）：
+
+- 第一次点文件夹：push 进去后立刻退回上一层
+- 再点一次：正常进入，图片/子目录都能显示
+- 主机→共享→根目录链路已正常（destination-based 链接生效）
+
+原因：
+
+- `BrowseView` 内层 `NavigationStack(path: $pathStack)` + `navigationDestination(for: String.self)`
+  在 iOS 18/26 下首次 push 不稳定：path 绑定或注册查找在栈刚建立时失效，导致 push 被撤销。
+
+解决：
+
+- 内层导航也改为 destination-based `NavigationLink { directoryView(path: item.path) } label: {...}`
+- 删除 `pathStack` 状态和 `navigationDestination(for: String.self)` 注册
+- 新建文件夹操作改为按当前目录层级传 `path`（`performCreate(in:)`）
+
+### 9. 图片查看器交互改进
+
+按用户要求调整：
+
+- 保存原图成功后不再弹"已保存到相册"确认框（静默完成，失败仍提示）
+- 左右滑动切换同一文件夹内的图片（TabView 分页）
+- 向下拖拽/下滑退出图片查看，返回文件夹网格（拖到阈值释放即退出，未到阈值回弹）
+- 顶部显示 `当前页 / 总数` 计数
 
 ## 当前待排查问题
 

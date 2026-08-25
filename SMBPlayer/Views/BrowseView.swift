@@ -11,7 +11,6 @@ struct BrowseView: View {
     let share: String
 
     @StateObject private var service: SMBFileService
-    @State private var pathStack: [String] = []
     @State private var sort: RemoteFileSort = .name
     @State private var isAscending = true
     @State private var gridMode = true
@@ -39,11 +38,8 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $pathStack) {
+        NavigationStack {
             directoryView(path: "")
-                .navigationDestination(for: String.self) { path in
-                    directoryView(path: path)
-                }
         }
     }
 
@@ -130,7 +126,7 @@ struct BrowseView: View {
         ) {
             TextField("名称", text: $newName)
             Button("创建") {
-                Task { await performCreate() }
+                Task { await performCreate(in: path) }
             }
             Button("取消", role: .cancel) {}
         } message: {
@@ -177,7 +173,8 @@ struct BrowseView: View {
                 )
             } else {
                 ImageViewerView(
-                    item: media.item,
+                    items: imageItems,
+                    initialIndex: imageItems.firstIndex(where: { $0.id == media.item.id }) ?? 0,
                     server: server,
                     service: service
                 )
@@ -189,14 +186,26 @@ struct BrowseView: View {
         ScrollView {
             LazyVGrid(columns: gridColumns, spacing: 14) {
                 ForEach(sortedEntries) { item in
-                    GridCell(
-                        item: item,
-                        server: server,
-                        service: service,
-                        action: { open(item) }
-                    )
-                    .contextMenu {
-                        contextMenu(for: item)
+                    if item.isDirectory {
+                        NavigationLink {
+                            directoryView(path: item.path)
+                        } label: {
+                            GridCell(item: item, server: server, service: service)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            contextMenu(for: item)
+                        }
+                    } else {
+                        GridCell(
+                            item: item,
+                            server: server,
+                            service: service,
+                            action: { open(item) }
+                        )
+                        .contextMenu {
+                            contextMenu(for: item)
+                        }
                     }
                 }
             }
@@ -240,7 +249,34 @@ struct BrowseView: View {
         }
     }
 
+    private var imageItems: [RemoteItem] {
+        sortedEntries.filter(\.isImage)
+    }
+
+    @ViewBuilder
     private func row(for item: RemoteItem) -> some View {
+        if item.isDirectory {
+            NavigationLink {
+                directoryView(path: item.path)
+            } label: {
+                rowContent(for: item)
+            }
+            .contextMenu {
+                contextMenu(for: item)
+            }
+        } else {
+            rowContent(for: item)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    open(item)
+                }
+                .contextMenu {
+                    contextMenu(for: item)
+                }
+        }
+    }
+
+    private func rowContent(for item: RemoteItem) -> some View {
         HStack(spacing: 12) {
             Image(systemName: item.systemImage)
                 .font(.title3)
@@ -255,13 +291,6 @@ struct BrowseView: View {
             Spacer()
         }
         .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            open(item)
-        }
-        .contextMenu {
-            contextMenu(for: item)
-        }
     }
 
     @ViewBuilder
@@ -290,10 +319,7 @@ struct BrowseView: View {
     }
 
     private func open(_ item: RemoteItem) {
-        if item.isDirectory {
-            AppLogger.shared.log("open folder \(item.path)")
-            pathStack.append(item.path)
-        } else if item.isImage || item.isVideo {
+        if item.isImage || item.isVideo {
             AppLogger.shared.log("open media \(item.path)")
             selectedMedia = MediaSelection(item: item)
         }
@@ -333,9 +359,8 @@ struct BrowseView: View {
     }
 
     @MainActor
-    private func performCreate() async {
+    private func performCreate(in path: String) async {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let path = pathStack.last ?? ""
         defer {
             newEntryType = nil
             showNewEntry = false
@@ -406,22 +431,32 @@ private struct GridCell: View {
     let item: RemoteItem
     let server: SMBServer
     let service: SMBFileService
-    let action: () -> Void
+    var action: (() -> Void)? = nil
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                FileThumbnailView(item: item, server: server, service: service)
-                    .frame(height: 110)
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                Text(item.name)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+        Group {
+            if let action {
+                Button(action: action) {
+                    cellContent
+                }
+                .buttonStyle(.plain)
+            } else {
+                cellContent
             }
         }
-        .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+    }
+
+    private var cellContent: some View {
+        VStack(spacing: 6) {
+            FileThumbnailView(item: item, server: server, service: service)
+                .frame(height: 110)
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            Text(item.name)
+                .font(.caption)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
     }
 }
