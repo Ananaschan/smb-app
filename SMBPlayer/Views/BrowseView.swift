@@ -291,8 +291,10 @@ struct BrowseView: View {
 
     private func open(_ item: RemoteItem) {
         if item.isDirectory {
+            AppLogger.shared.log("open folder \(item.path)")
             pathStack.append(item.path)
         } else if item.isImage || item.isVideo {
+            AppLogger.shared.log("open media \(item.path)")
             selectedMedia = MediaSelection(item: item)
         }
     }

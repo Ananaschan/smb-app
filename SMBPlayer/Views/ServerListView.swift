@@ -9,7 +9,7 @@ struct ServerListView: View {
     var body: some View {
         List {
             ForEach(store.servers) { server in
-                NavigationLink(value: server) {
+                NavigationLink(value: AppRoute.server(server)) {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(server.displayName)
@@ -70,9 +70,6 @@ struct ServerListView: View {
                     Image(systemName: "plus")
                 }
             }
-        }
-        .navigationDestination(for: SMBServer.self) { server in
-            ShareListView(server: server)
         }
         .sheet(isPresented: $showAdd) {
             ServerFormView()

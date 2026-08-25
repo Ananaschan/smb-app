@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum AppRoute: Hashable {
+    case server(SMBServer)
+    case share(SMBServer, SMBShare)
+}
+
 struct RootView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -10,6 +15,14 @@ struct RootView: View {
         if sizeClass == .compact {
             NavigationStack {
                 ServerListView()
+                    .navigationDestination(for: AppRoute.self) { route in
+                        switch route {
+                        case .server(let server):
+                            ShareListView(server: server)
+                        case .share(let server, let share):
+                            BrowseView(server: server, share: share.name)
+                        }
+                    }
             }
         } else {
             NavigationSplitView {

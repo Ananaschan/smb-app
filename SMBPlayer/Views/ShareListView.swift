@@ -15,7 +15,7 @@ struct ShareListView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(shares) { share in
-                    NavigationLink(value: share) {
+                    NavigationLink(value: AppRoute.share(server, share)) {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(share.name)
@@ -34,9 +34,6 @@ struct ShareListView: View {
         }
         .navigationTitle(server.displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: SMBShare.self) { share in
-            BrowseView(server: server, share: share.name)
-        }
         .alert("连接失败", isPresented: $showError) {
             Button("好", role: .cancel) {}
         } message: {
