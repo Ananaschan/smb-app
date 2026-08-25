@@ -325,6 +325,7 @@ struct BrowseView: View {
         do {
             service.entries = try await service.listDirectory(at: path)
         } catch {
+            AppLogger.shared.log("BrowseView load failed path=\(path) error=\(error.localizedDescription)")
             presentError(error)
         }
     }

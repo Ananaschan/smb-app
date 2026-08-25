@@ -59,7 +59,11 @@ struct ServerListView: View {
         }
         .navigationTitle("SMB 文件")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                ShareLink(item: AppLogger.shared.logFileURL) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel("导出日志")
                 Button {
                     showAdd = true
                 } label: {

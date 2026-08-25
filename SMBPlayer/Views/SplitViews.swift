@@ -35,7 +35,11 @@ struct SplitServerList: View {
         }
         .navigationTitle("SMB 文件")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                ShareLink(item: AppLogger.shared.logFileURL) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel("导出日志")
                 Button {
                     showAdd = true
                 } label: {
@@ -98,6 +102,8 @@ struct SplitShareList: View {
         )
         if let loaded = try? await service.listShares() {
             shares = loaded
+        } else {
+            AppLogger.shared.log("SplitShareList load failed @ \(server.host)")
         }
     }
 }

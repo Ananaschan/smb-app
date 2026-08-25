@@ -38,38 +38,61 @@ final class SMBFileService: ObservableObject {
     }
 
     func listShares() async throws -> [SMBShare] {
+        AppLogger.shared.log("listShares \(server.displayName) @ \(server.host)")
         guard let manager = makeManager() else {
+            AppLogger.shared.log("listShares failed: invalidURL")
             throw SMBServiceError.invalidURL
         }
         manager.timeout = 30
-        let shares = try await manager.listShares()
-        return shares
-            .filter { !$0.name.hasSuffix("$") }
-            .map { SMBShare(name: $0.name, comment: $0.comment) }
+        do {
+            let shares = try await manager.listShares()
+            let result = shares
+                .filter { !$0.name.hasSuffix("$") }
+                .map { SMBShare(name: $0.name, comment: $0.comment) }
+            AppLogger.shared.log("listShares found \(result.count) shares")
+            return result
+        } catch {
+            AppLogger.shared.log("listShares failed: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     func connectIfNeeded() async throws {
+        AppLogger.shared.log("connect share \(share) @ \(server.host)")
         if manager == nil {
             manager = makeManager()
         }
         guard let manager else {
+            AppLogger.shared.log("connect failed: invalidURL")
             throw SMBServiceError.invalidURL
         }
         do {
             try await manager.connectShare(name: share)
+            AppLogger.shared.log("connect share succeeded")
         } catch {
             try? await manager.disconnectShare()
+            self.manager = nil
+            AppLogger.shared.log("connect failed: \(error.localizedDescription)")
             throw error
         }
     }
 
     func listDirectory(at path: String) async throws -> [RemoteItem] {
+        AppLogger.shared.log("listDirectory path=\(path) share=\(share)")
         try await connectIfNeeded()
         guard let manager else {
+            AppLogger.shared.log("listDirectory failed: notConnected")
             throw SMBServiceError.notConnected
         }
-        let rows = try await manager.contentsOfDirectory(atPath: path)
-        return rows.compactMap { RemoteItem(remoteRow: $0, basePath: path) }
+        do {
+            let rows = try await manager.contentsOfDirectory(atPath: path)
+            let items = rows.compactMap { RemoteItem(remoteRow: $0, basePath: path) }
+            AppLogger.shared.log("listDirectory found \(items.count) items")
+            return items
+        } catch {
+            AppLogger.shared.log("listDirectory failed: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     func read(_ path: String) async throws -> Data {
@@ -81,11 +104,19 @@ final class SMBFileService: ObservableObject {
     }
 
     func download(_ path: String, to url: URL) async throws {
+        AppLogger.shared.log("download \(path)")
         try await connectIfNeeded()
         guard let manager else {
+            AppLogger.shared.log("download failed: notConnected")
             throw SMBServiceError.notConnected
         }
-        try await manager.downloadItem(atPath: path, to: url, progress: nil)
+        do {
+            try await manager.downloadItem(atPath: path, to: url, progress: nil)
+            AppLogger.shared.log("download completed \(path)")
+        } catch {
+            AppLogger.shared.log("download failed: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     func createFolder(named name: String, in path: String) async throws {

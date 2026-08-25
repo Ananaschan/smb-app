@@ -59,6 +59,7 @@ struct ShareListView: View {
         do {
             shares = try await service.listShares()
         } catch {
+            AppLogger.shared.log("ShareListView load failed: \(error.localizedDescription)")
             alertMessage = error.localizedDescription
             showError = true
         }
