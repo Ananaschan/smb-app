@@ -233,6 +233,9 @@ NavigationLink {
 - `SplitShareList` 不再依赖 `List(selection:)`：行改为显式 `Button`，点击直接写 `selection` 绑定，
   用 `checkmark` 图标做选中标记
 - 选中时写日志 `select share <name>`，便于确认点击是否生效
+- **内容不刷新**：切换共享后标题会变但内容不变——`BrowseView` 是 struct，切共享时 SwiftUI 只更新属性
+  不重建视图，`@StateObject service` 和 `pathStack` 残留上一个共享的状态。修复：detail 栏
+  `BrowseView` 加 `.id("\(server.id)|\(share.name)")`，共享一变视图即销毁重建
 
 ## 当前待排查问题
 

@@ -23,6 +23,7 @@ struct RootView: View {
             } detail: {
                 if let server = selectedServer, let share = selectedShare {
                     BrowseView(server: server, share: share.name)
+                        .id("\(server.id)|\(share.name)")
                 } else {
                     EmptySelectionView()
                 }
