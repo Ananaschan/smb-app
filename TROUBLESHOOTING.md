@@ -215,6 +215,25 @@ NavigationLink {
 - 工作流已加 `timeout-minutes: 30` 防止无限消耗 Actions 额度
 - 仓库已转公开，Actions 构建免费不限量
 
+### 12. iPad 三栏视图：点击其他共享文件夹无法切换
+
+现象（iPad 真机）：
+
+- 图片浏览正常；当前共享内的子文件夹可自由切换
+- 点击中栏的**其他共享**，选中不生效，无法切换（iPhone push 导航无此问题）
+
+原因：
+
+- iPad 走 `NavigationSplitView` 三栏布局，共享列表用 `List(selection:)` 选中
+- iOS 17/18+ 的 `NavigationSplitView` 各栏 `List(selection:)` 选中不稳定（社区大量同款报告），
+  点击行不触发选中回调
+
+解决：
+
+- `SplitShareList` 不再依赖 `List(selection:)`：行改为显式 `Button`，点击直接写 `selection` 绑定，
+  用 `checkmark` 图标做选中标记
+- 选中时写日志 `select share <name>`，便于确认点击是否生效
+
 ## 当前待排查问题
 
 ### SMB 进入文件夹后自动退出/断开

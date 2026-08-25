@@ -61,27 +61,38 @@ struct SplitShareList: View {
     @State private var isLoading = true
 
     var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-            } else {
-                List(selection: $selection) {
-                    ForEach(shares) { share in
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(share.name)
-                                if !share.comment.isEmpty {
-                                    Text(share.comment)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+        List(shares) { share in
+            Button {
+                AppLogger.shared.log("select share \(share.name) @ \(server.host)")
+                selection = share
+            } label: {
+                HStack {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(share.name)
+                            if !share.comment.isEmpty {
+                                Text(share.comment)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
-                        } icon: {
-                            Image(systemName: "internaldrive.fill")
                         }
-                        .tag(share)
+                    } icon: {
+                        Image(systemName: "internaldrive.fill")
+                    }
+                    Spacer()
+                    if selection?.name == share.name {
+                        Image(systemName: "checkmark")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.tint)
                     }
                 }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .overlay {
+            if isLoading {
+                ProgressView()
             }
         }
         .navigationTitle("共享")
