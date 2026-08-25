@@ -190,7 +190,7 @@ NavigationLink {
 - 内存缓存上限 128 MB
 - 设置页（首页/侧边栏工具栏齿轮按钮）显示缓存占用与文件数，可一键手动清除缓存
 
-### 11. SwiftCompile 编译挂起（待定位）
+### 11. SwiftCompile 编译挂起（已定位）
 
 现象：
 
@@ -198,11 +198,22 @@ NavigationLink {
 - 正常构建约 5 分钟；两次不同机器上复现
 - 失败运行能在 1~2 分钟内快速报出编译错误，说明新代码类型检查本身不慢
 
-排查进度：
+定位过程（二分法，每次构建约 2.5 分钟）：
 
-- 已临时移除缓存相关代码（ImageLoader 恢复原版、删除设置页、移除齿轮入口），验证是否为触发源
-- 若仍挂起，下一步回退 `ImageViewerView` 重写（TabView 分页 + enumerated 遍历）
+1. 移除缓存相关代码（ImageLoader 恢复原版、删除设置页、移除齿轮入口）→ **仍挂起** → 排除缓存
+2. 只回退 `ImageViewerView` 重写 → **仍挂起** → 排除图片查看器
+3. 只保留新 `ImageViewerView` + 旧 `BrowseView` → **构建通过** → 元凶锁定 `BrowseView`
+4. 结论：`BrowseView` 中"格子/行内嵌 `NavigationLink { directoryView(path:) }`"的写法触发
+   Xcode 16.4 Release 全模块优化的编译器挂起（该写法本身能通过类型检查，但在 `-O -whole-module-optimization`
+   的 SIL/LLVM 阶段失控）
+
+处置：
+
+- `BrowseView` 保持 d5e5cdc 的 `NavigationStack(path:)` 机制（首次进入子文件夹仍可能弹回，
+  该修复方案搁置，待有 Mac 环境或换编译器版本后再试）
+- `ImageViewerView` 新版本保留（翻页/下滑退出/toast）
 - 工作流已加 `timeout-minutes: 30` 防止无限消耗 Actions 额度
+- 仓库已转公开，Actions 构建免费不限量
 
 ## 当前待排查问题
 

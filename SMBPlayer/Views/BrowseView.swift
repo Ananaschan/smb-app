@@ -177,7 +177,8 @@ struct BrowseView: View {
                 )
             } else {
                 ImageViewerView(
-                    item: media.item,
+                    items: imageItems,
+                    initialIndex: imageItems.firstIndex(where: { $0.id == media.item.id }) ?? 0,
                     server: server,
                     service: service
                 )
@@ -238,6 +239,10 @@ struct BrowseView: View {
                 ascending: isAscending
             )
         }
+    }
+
+    private var imageItems: [RemoteItem] {
+        sortedEntries.filter(\.isImage)
     }
 
     private func row(for item: RemoteItem) -> some View {

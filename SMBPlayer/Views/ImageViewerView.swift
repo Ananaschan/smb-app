@@ -21,11 +21,6 @@ struct ImageViewerView: View {
         _currentIndex = State(initialValue: initialIndex)
     }
 
-    /// 兼容旧 BrowseView 的单图构造器（二分法定位用）
-    init(item: RemoteItem, server: SMBServer, service: SMBFileService) {
-        self.init(items: [item], initialIndex: 0, server: server, service: service)
-    }
-
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
