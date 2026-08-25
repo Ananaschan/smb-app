@@ -13,7 +13,6 @@ final class VLCPlayerViewModel: NSObject, ObservableObject {
     override init() {
         super.init()
         player.delegate = self
-        player.timeChangeUpdateInterval = 0.5
     }
 
     var currentTimeText: String {
@@ -21,7 +20,8 @@ final class VLCPlayerViewModel: NSObject, ObservableObject {
     }
 
     var durationText: String {
-        Self.format(seconds: Int(player.length.intValue / 1000))
+        let millis = player.media?.length.intValue ?? 0
+        return Self.format(seconds: Int(millis / 1000))
     }
 
     func play(
@@ -40,9 +40,7 @@ final class VLCPlayerViewModel: NSObject, ObservableObject {
         ) else {
             return
         }
-        guard let media = VLCMedia(url: url) else {
-            return
-        }
+        let media = VLCMedia(url: url)
         media.addOption(":network-caching=2000")
         media.addOption(":file-caching=3000")
         player.media = media
@@ -63,7 +61,7 @@ final class VLCPlayerViewModel: NSObject, ObservableObject {
     }
 
     func seek(to fraction: Double) {
-        player.position = fraction
+        player.position = Float(fraction)
     }
 
     func selectSubtitle(url: URL) {
@@ -108,7 +106,7 @@ final class VLCPlayerViewModel: NSObject, ObservableObject {
 
     private func updateState() {
         isPlaying = player.isPlaying
-        position = player.position
+        position = Double(player.position)
     }
 
     private static func format(seconds: Int) -> String {
@@ -123,19 +121,16 @@ final class VLCPlayerViewModel: NSObject, ObservableObject {
 }
 
 extension VLCPlayerViewModel: VLCMediaPlayerDelegate {
-    func mediaPlayerStateChanged(_ newState: VLCMediaPlayerState) {
+    func mediaPlayerStateChanged(_ aNotification: Notification) {
+        if player.state == .buffering {
+            bufferingText = "缓冲中…"
+        } else {
+            bufferingText = ""
+        }
         updateState()
     }
 
     func mediaPlayerTimeChanged(_ aNotification: Notification) {
         updateState()
-    }
-
-    func mediaPlayerBufferingChanged(_ progress: Float) {
-        if progress >= 1 {
-            bufferingText = ""
-        } else {
-            bufferingText = String(format: "缓冲 %.0f%%", Double(progress) * 100)
-        }
     }
 }
